@@ -18,7 +18,7 @@ dist/
 *~
 
 # Data & Output (imported/generated files)
-data/
+data/*
 !data/README.md
 output/
 
