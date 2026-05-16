@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data & Output (imported/generated files)
+data/
+!data/README.md
+output/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
