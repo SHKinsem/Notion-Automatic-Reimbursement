@@ -57,6 +57,7 @@ python -m pip install -r requirements.txt
 | **pillow** | ≥10.0 | 图像处理和转换 |
 
 所有其他导入均来自 Python 标准库。
+生成 PDF 时，脚本会使用 `pillow` 按页面显示尺寸缩放截图，并在嵌入前做适度压缩以控制输出体积。
 
 ## 使用方法
 

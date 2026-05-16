@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import os
 import re
 import sys
@@ -14,6 +15,7 @@ from typing import Iterable
 from urllib.parse import unquote, urlparse
 
 try:
+    from PIL import Image, ImageOps
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -49,6 +51,8 @@ MONTH_NAMES = [
     "November",
     "December",
 ]
+PDF_IMAGE_DPI = 200
+PDF_IMAGE_JPEG_QUALITY = 80
 
 
 @dataclass
@@ -345,23 +349,52 @@ def draw_image_in_box(pdf: canvas.Canvas, image_path: Path, x: float, y: float, 
         draw_wrapped_text(pdf, f"Missing image: {image_path}", x + 8 * mm, y + height / 2, width - 16 * mm, font_name, 9, 11)
         return
 
+    padding = 3 * mm
+    available_width = width - 2 * padding
+    available_height = height - 2 * padding
+
     try:
-        image = ImageReader(str(image_path))
-        image_width, image_height = image.getSize()
+        with Image.open(image_path) as source_image:
+            image = ImageOps.exif_transpose(source_image)
+            image.load()
+
+        image_width, image_height = image.size
+        target_width_px = max(1, round(available_width / 72 * PDF_IMAGE_DPI))
+        target_height_px = max(1, round(available_height / 72 * PDF_IMAGE_DPI))
+        resize_scale = min(target_width_px / image_width, target_height_px / image_height, 1.0)
+        if resize_scale < 1.0:
+            resized_size = (
+                max(1, round(image_width * resize_scale)),
+                max(1, round(image_height * resize_scale)),
+            )
+            image = image.resize(resized_size, Image.Resampling.LANCZOS)
+            image_width, image_height = image.size
+
+        has_alpha = "A" in image.getbands() or (image.mode == "P" and "transparency" in image.info)
+        image_buffer = io.BytesIO()
+        if has_alpha:
+            image.save(image_buffer, format="PNG", optimize=True)
+        else:
+            image.convert("RGB").save(
+                image_buffer,
+                format="JPEG",
+                quality=PDF_IMAGE_JPEG_QUALITY,
+                optimize=True,
+                progressive=True,
+            )
+        image_buffer.seek(0)
+        image_reader = ImageReader(image_buffer)
     except Exception as exc:
         pdf.setFillColor(colors.HexColor("#667085"))
         draw_wrapped_text(pdf, f"Cannot read image: {image_path.name} ({exc})", x + 8 * mm, y + height / 2, width - 16 * mm, font_name, 9, 11)
         return
 
-    padding = 3 * mm
-    available_width = width - 2 * padding
-    available_height = height - 2 * padding
     scale = min(available_width / image_width, available_height / image_height)
     draw_width = image_width * scale
     draw_height = image_height * scale
     draw_x = x + (width - draw_width) / 2
     draw_y = y + (height - draw_height) / 2
-    pdf.drawImage(image, draw_x, draw_y, draw_width, draw_height, preserveAspectRatio=True, mask="auto")
+    pdf.drawImage(image_reader, draw_x, draw_y, draw_width, draw_height, preserveAspectRatio=True, mask="auto")
 
 
 def draw_placeholders(pdf: canvas.Canvas, x: float, y: float, width: float, height: float, font_name: str, message: str) -> None:
@@ -398,7 +431,7 @@ def image_boxes(x: float, y: float, width: float, height: float, image_count: in
 def write_pdf(items: list[ReimbursementItem], pdf_output: Path) -> None:
     pdf_output.parent.mkdir(parents=True, exist_ok=True)
     font_name = register_pdf_font()
-    pdf = canvas.Canvas(str(pdf_output), pagesize=A4)
+    pdf = canvas.Canvas(str(pdf_output), pagesize=A4, pageCompression=1)
     page_width, page_height = A4
     margin = 14 * mm
 
