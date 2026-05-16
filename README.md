@@ -90,6 +90,8 @@ python scripts/generate_reimbursement_pdf.py \
 
 详见 [data/README.md](data/README.md) 了解如何从 Notion 导出数据。
 
+**Notion 模板链接：** https://www.notion.so/279b326fce3d824a99c10159765659cf?v=14fb326fce3d823eaabe08caac642025&source=copy_link
+
 ## 常见问题
 
 **Q: 缺少 PDF 依赖错误**
